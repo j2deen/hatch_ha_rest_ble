@@ -14,7 +14,9 @@
     },
     "abort": {
       "no_devices_found": "No Hatch Rest devices found. Make sure the device is powered on and in range of a Bluetooth adapter or proxy.",
-      "already_configured": "This device is already configured."
+      "already_configured": "This device is already configured.",
+      "cannot_connect": "Could not connect to the device to verify it. Make sure it is in range and not connected to the Hatch app, then try again.",
+      "not_supported": "This Hatch device does not support local Bluetooth control. Only the 1st-gen Rest and Rest+ do; newer models are cloud-only (see the dahlb/ha_hatch integration)."
     }
   },
   "entity": {

@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
+from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
+from homeassistant.components import bluetooth
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
@@ -12,11 +14,16 @@ from homeassistant.components.bluetooth import (
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS
 
-from .const import DOMAIN, MANUFACTURER_ID
+from .const import CHAR_TX, DOMAIN, MANUFACTURER_ID
 
 
 def _is_hatch_rest(info: BluetoothServiceInfoBleak) -> bool:
-    """Return True if an advertisement looks like a 1st-gen Hatch Rest."""
+    """Return True if an advertisement looks like a Hatch device.
+
+    All Hatch products share manufacturer id 1076 and advertise nothing that
+    distinguishes the BLE-controllable 1st-gen Rest from cloud-only models,
+    so the flow probes the GATT table before creating an entry.
+    """
     return MANUFACTURER_ID in info.manufacturer_data
 
 
@@ -29,6 +36,36 @@ class HatchRestConfigFlow(ConfigFlow, domain=DOMAIN):
         """Initialise the flow."""
         self._discovery_info: BluetoothServiceInfoBleak | None = None
         self._discovered: dict[str, str] = {}
+
+    async def _async_verify(self, address: str) -> str | None:
+        """Connect and check the device exposes the Rest control characteristic.
+
+        Returns None when the device is a controllable Rest, otherwise an
+        abort reason ("cannot_connect" or "not_supported").
+        """
+        ble_device = bluetooth.async_ble_device_from_address(
+            self.hass, address, connectable=True
+        )
+        if ble_device is None:
+            return "cannot_connect"
+        try:
+            client = await establish_connection(
+                BleakClientWithServiceCache,
+                ble_device,
+                ble_device.name or address,
+            )
+        except Exception:  # noqa: BLE001 - any connect failure ends the flow
+            return "cannot_connect"
+        try:
+            supported = client.services.get_characteristic(CHAR_TX) is not None
+        except Exception:  # noqa: BLE001
+            supported = False
+        finally:
+            try:
+                await client.disconnect()
+            except Exception:  # noqa: BLE001 - best effort
+                pass
+        return None if supported else "not_supported"
 
     async def async_step_bluetooth(
         self, discovery_info: BluetoothServiceInfoBleak
@@ -49,6 +86,8 @@ class HatchRestConfigFlow(ConfigFlow, domain=DOMAIN):
         assert self._discovery_info is not None
         name = self._discovery_info.name or self._discovery_info.address
         if user_input is not None:
+            if (reason := await self._async_verify(self._discovery_info.address)):
+                return self.async_abort(reason=reason)
             return self.async_create_entry(title=name, data={})
 
         self._set_confirm_only()
@@ -65,6 +104,8 @@ class HatchRestConfigFlow(ConfigFlow, domain=DOMAIN):
             address = user_input[CONF_ADDRESS]
             await self.async_set_unique_id(address, raise_on_progress=False)
             self._abort_if_unique_id_configured()
+            if (reason := await self._async_verify(address)):
+                return self.async_abort(reason=reason)
             return self.async_create_entry(
                 title=self._discovered.get(address, address), data={}
             )

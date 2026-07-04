@@ -33,7 +33,10 @@ cannot control them because the devices simply don't accept control over BLE.
 - **Light** — RGB colour, brightness, and a `rainbow` effect (gradient mode)
 - **Select** — sound / white-noise track
 - **Number** — volume (0–100 %)
-- Auto-discovery via the HA Bluetooth integration (matches manufacturer ID `1076`)
+- Auto-discovery via the HA Bluetooth integration (matches manufacturer ID `1076`).
+  All Hatch products share that ID and advertise nothing model-specific, so the
+  config flow connects and verifies the Rest control characteristic before adding
+  a device — cloud-only models are rejected with a pointer to `dahlb/ha_hatch`.
 - Push state updates via GATT notifications (`local_push`)
 
 ## Installation
