@@ -14,8 +14,10 @@ from .hatch import HatchRestClient, HatchRestState
 
 _LOGGER = logging.getLogger(__name__)
 
-# The device pushes state via notifications; this is a slow safety-net poll.
-UPDATE_INTERVAL = timedelta(seconds=60)
+# Hardware-verified: the Rest does NOT push feedback notifications, so polling
+# is the only way to see changes made outside HA (e.g. from the Hatch app).
+# The connection stays open, so each poll is a single cheap GATT read.
+UPDATE_INTERVAL = timedelta(seconds=30)
 
 
 class HatchRestCoordinator(DataUpdateCoordinator[HatchRestState]):

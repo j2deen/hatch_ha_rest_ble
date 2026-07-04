@@ -37,7 +37,9 @@ cannot control them because the devices simply don't accept control over BLE.
   All Hatch products share that ID and advertise nothing model-specific, so the
   config flow connects and verifies the Rest control characteristic before adding
   a device — cloud-only models are rejected with a pointer to `dahlb/ha_hatch`.
-- Push state updates via GATT notifications (`local_push`)
+- State polling every 30 s over a persistent connection (`local_polling` — the
+  Rest does not push GATT notifications, verified on hardware). Changes made in
+  HA reflect immediately; changes made in the Hatch app appear within ~30 s.
 
 ## Installation
 
