@@ -1,0 +1,90 @@
+# Hatch Rest (BLE) — Home Assistant integration
+
+Local control of the **1st-generation Hatch Baby Rest** night light + sound machine
+over Bluetooth Low Energy — **no cloud, no Hatch account, works through ESPHome
+Bluetooth proxies**.
+
+This integration was reverse-engineered from the Hatch Sleep Android app (v6.24.1)
+and cross-checked against the community's prior work
+([Marcus-L](https://github.com/Marcus-L/m4rcus.HatchBaby.Rest),
+[kjoconnor/pyhatchbabyrest](https://github.com/kjoconnor/pyhatchbabyrest)).
+
+> Repository: <https://github.com/j2deen/hatch_ha_rest_ble>
+
+## ⚠️ Device compatibility
+
+This only works with the **original Rest (1st-gen)** — the one that exposes a real
+local BLE control protocol.
+
+| Model | Local BLE control? | Notes |
+|---|---|---|
+| **Rest (1st-gen)** | ✅ **Yes** — this integration | |
+| Rest+ | ⚠️ Partial | Has a richer BLE service; not implemented here |
+| Restore / Restore 2 / 3 / iQ | ❌ No | Cloud/WiFi only (AWS IoT MQTT); BLE is setup-only |
+| Rest Mini / Rest 2nd-gen / Grow / Sleep Clock | ❌ No | Cloud/WiFi only |
+
+For the cloud-only models, use the cloud integration
+[`dahlb/ha_hatch`](https://github.com/dahlb/ha_hatch) instead — Bluetooth proxies
+cannot control them because the devices simply don't accept control over BLE.
+
+## Features
+
+- **Switch** — master power (on/off)
+- **Light** — RGB colour, brightness, and a `rainbow` effect (gradient mode)
+- **Select** — sound / white-noise track
+- **Number** — volume (0–100 %)
+- Auto-discovery via the HA Bluetooth integration (matches manufacturer ID `1076`)
+- Push state updates via GATT notifications (`local_push`)
+
+## Installation
+
+### HACS (recommended)
+1. HACS → Integrations → ⋮ → **Custom repositories**
+2. Add `https://github.com/j2deen/hatch_ha_rest_ble`, category **Integration**
+3. Install **Hatch Rest (BLE)**, then restart Home Assistant
+4. The Rest should be auto-discovered (Settings → Devices & Services). If not,
+   add it manually via **+ Add Integration → Hatch Rest (BLE)**.
+
+### Manual
+Copy `custom_components/hatch_rest_ble/` into your HA `config/custom_components/`
+directory and restart.
+
+## Requirements
+
+- Home Assistant 2025.3 or newer
+- A Bluetooth adapter on the HA host **or** an ESPHome Bluetooth proxy in range of
+  the Rest (the proxy must allow active connections, which is the default).
+
+## Protocol reference
+
+GATT service `02240001-5efd-47eb-9c1a-de53f7a2b232`:
+
+| Characteristic | UUID | Use |
+|---|---|---|
+| TX (write) | `02240002-5efd-47eb-9c1a-de53f7a2b232` | ASCII commands |
+| Feedback (read/notify) | `02260002-5efd-47eb-9c1a-de53f7a2b232` | current state |
+
+Commands (UTF-8 ASCII written to TX):
+
+| Action | Format | Example |
+|---|---|---|
+| Power | `SI{:02x}` | `SI01` = on |
+| Colour + brightness | `SC{r}{g}{b}{i}` (each `{:02x}`, 0–255) | `SCff0000ff` = red, full |
+| Sound | `SN{:02x}` | `SN05` = Ocean |
+| Volume | `SV{:02x}` (0–255) | `SV80` |
+
+Setting the colour to `(254, 254, 254)` = `SCfefefe{i}` enables rainbow mode.
+
+Feedback packet layout (delimited by ASCII `C`/`S`/`P`):
+
+```
+idx:  5    6   7   8   9    10   11    12   13   14
+      'C'  R   G   B   bri  'S'  snd   vol  'P'  flags
+```
+
+Power is **inverted** in the flags byte: the device is ON when `flags & 0xC0 == 0`.
+
+## Credits
+
+- BLE protocol originally documented by Marcus-L and the `pyhatchbabyrest` project.
+- This integration: a clean, Bluetooth-proxy-native HA implementation.

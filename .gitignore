@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# Local tooling state
+.claude/
+
+# Decompile / APK working material (large, not part of the integration)
+APK/
+Decompile/

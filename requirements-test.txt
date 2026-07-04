@@ -1,0 +1,4 @@
+# Dependencies for the standalone BLE test tool (scripts/hatch_ble_test.py).
+# This is NOT needed to run the Home Assistant integration itself — Home
+# Assistant bundles bleak. It's only for testing the device from your computer.
+bleak>=0.22
