@@ -89,7 +89,8 @@ You can change the interval in **Settings → Devices & Services → Hatch Rest
 
 ## Requirements
 
-- Home Assistant 2025.3 or newer
+- Home Assistant 2025.3 or newer (the integration icon requires 2026.3+, which
+  serves brand images bundled in the integration's `brand/` folder)
 - A Bluetooth adapter on the HA host **or** an ESPHome Bluetooth proxy in range of
   the Rest (the proxy must allow active connections, which is the default).
 
