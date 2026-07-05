@@ -29,17 +29,23 @@ cannot control them because the devices simply don't accept control over BLE.
 
 ## Features
 
-- **Switch** — master power (on/off)
-- **Light** — RGB colour, brightness, and a `rainbow` effect (gradient mode)
-- **Select** — sound / white-noise track
-- **Number** — volume (0–100 %)
+One device with four entities:
+
+| Entity | What it does |
+|---|---|
+| **Light** | RGB colour, brightness, and a `rainbow` effect (the device's gradient mode). Turning the light off dims it to zero — sound keeps playing. |
+| **Switch** | Master power — turns the whole device (light *and* sound) on/off. |
+| **Select** | Sound / white-noise track (Ocean, Rain, White Noise, …, or Off). |
+| **Number** | Volume (0–100 %). |
+
 - Auto-discovery via the HA Bluetooth integration (matches manufacturer ID `1076`).
   All Hatch products share that ID and advertise nothing model-specific, so the
   config flow connects and verifies the Rest control characteristic before adding
   a device — cloud-only models are rejected with a pointer to `dahlb/ha_hatch`.
-- State polling every 30 s over a persistent connection (`local_polling` — the
-  Rest does not push GATT notifications, verified on hardware). Changes made in
-  HA reflect immediately; changes made in the Hatch app appear within ~30 s.
+- Fully local (`local_polling`) over a persistent BLE connection — see
+  [Polling & responsiveness](#polling--responsiveness).
+- The Rest accepts multiple simultaneous BLE connections, so the Hatch phone app
+  keeps working alongside Home Assistant.
 
 ## Installation
 
@@ -53,6 +59,33 @@ cannot control them because the devices simply don't accept control over BLE.
 ### Manual
 Copy `custom_components/hatch_rest_ble/` into your HA `config/custom_components/`
 directory and restart.
+
+## Polling & responsiveness
+
+The 1st-gen Rest does **not** push state notifications over BLE (verified on
+hardware), so this integration polls the device — by default **every 30 seconds**
+over its persistent connection.
+
+What that means in practice:
+
+- **Changes made in Home Assistant appear immediately.** Every command is
+  confirmed by reading the device back (~1 s), so the poll interval does not
+  affect HA-initiated control at all.
+- **Changes made outside Home Assistant** (the Hatch phone app, or the buttons on
+  the device) show up in HA within one poll interval — up to 30 s by default.
+
+You can change the interval in **Settings → Devices & Services → Hatch Rest
+(BLE) → Configure** (10–300 s). When to bother:
+
+- **Lower it (10–15 s)** if your household actively uses the phone app or the
+  device buttons and you have automations reacting to the device's state — e.g.
+  "when the sound machine turns on, dim the hallway lights". Each poll is a
+  single small GATT read on an already-open connection, so even 10 s is a light
+  load for a Bluetooth adapter or ESPHome proxy.
+- **Raise it (60–300 s)** if HA is the only thing controlling the device, or if
+  the proxy serving the Rest is congested with many other BLE devices and you
+  want to minimise traffic. HA-side control stays instant regardless.
+- **Leave it at 30 s** otherwise — it's a sensible middle ground.
 
 ## Requirements
 

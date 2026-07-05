@@ -11,10 +11,24 @@ from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
 )
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_ADDRESS
+from homeassistant.core import callback
 
-from .const import CHAR_TX, DOMAIN, MANUFACTURER_ID
+from .const import (
+    CHAR_TX,
+    CONF_POLL_INTERVAL,
+    DEFAULT_POLL_INTERVAL,
+    DOMAIN,
+    MANUFACTURER_ID,
+    MAX_POLL_INTERVAL,
+    MIN_POLL_INTERVAL,
+)
 
 
 def _is_hatch_rest(info: BluetoothServiceInfoBleak) -> bool:
@@ -31,6 +45,12 @@ class HatchRestConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Hatch Rest (BLE)."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> HatchRestOptionsFlow:
+        """Return the options flow (poll interval)."""
+        return HatchRestOptionsFlow()
 
     def __init__(self) -> None:
         """Initialise the flow."""
@@ -129,6 +149,34 @@ class HatchRestConfigFlow(ConfigFlow, domain=DOMAIN):
                             address: f"{name} ({address})"
                             for address, name in self._discovered.items()
                         }
+                    )
+                }
+            ),
+        )
+
+
+class HatchRestOptionsFlow(OptionsFlow):
+    """Options: tune how often the device is polled."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show and save the options form."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_POLL_INTERVAL,
+                        default=self.config_entry.options.get(
+                            CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL
+                        ),
+                    ): vol.All(
+                        vol.Coerce(int),
+                        vol.Range(min=MIN_POLL_INTERVAL, max=MAX_POLL_INTERVAL),
                     )
                 }
             ),

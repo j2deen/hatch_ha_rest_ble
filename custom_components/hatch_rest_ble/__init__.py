@@ -10,6 +10,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
+from .const import CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL
 from .coordinator import HatchRestCoordinator
 from .hatch import HatchRestClient
 
@@ -42,7 +43,12 @@ async def async_setup_entry(
         )
 
     client = HatchRestClient(ble_device)
-    coordinator = HatchRestCoordinator(hass, client, address)
+    coordinator = HatchRestCoordinator(
+        hass,
+        client,
+        address,
+        poll_interval=entry.options.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL),
+    )
     try:
         await coordinator.async_config_entry_first_refresh()
     except ConfigEntryNotReady:
@@ -52,8 +58,16 @@ async def async_setup_entry(
         raise
 
     entry.runtime_data = coordinator
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+async def _async_options_updated(
+    hass: HomeAssistant, entry: HatchRestConfigEntry
+) -> None:
+    """Reload the entry so a changed poll interval takes effect."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(

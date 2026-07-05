@@ -9,7 +9,7 @@ from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN
+from .const import DEFAULT_POLL_INTERVAL, DOMAIN
 from .hatch import HatchRestClient, HatchRestState
 
 _LOGGER = logging.getLogger(__name__)
@@ -17,21 +17,24 @@ _LOGGER = logging.getLogger(__name__)
 # Hardware-verified: the Rest does NOT push feedback notifications, so polling
 # is the only way to see changes made outside HA (e.g. from the Hatch app).
 # The connection stays open, so each poll is a single cheap GATT read.
-UPDATE_INTERVAL = timedelta(seconds=30)
 
 
 class HatchRestCoordinator(DataUpdateCoordinator[HatchRestState]):
     """Coordinate connection and state for a single Hatch Rest."""
 
     def __init__(
-        self, hass: HomeAssistant, client: HatchRestClient, address: str
+        self,
+        hass: HomeAssistant,
+        client: HatchRestClient,
+        address: str,
+        poll_interval: int = DEFAULT_POLL_INTERVAL,
     ) -> None:
         """Set up the coordinator."""
         super().__init__(
             hass,
             _LOGGER,
             name=f"{DOMAIN} {address}",
-            update_interval=UPDATE_INTERVAL,
+            update_interval=timedelta(seconds=poll_interval),
         )
         self.client = client
         self.address = address

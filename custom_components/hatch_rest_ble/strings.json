@@ -19,6 +19,18 @@
       "not_supported": "This Hatch device does not support local Bluetooth control. Only the 1st-gen Rest and Rest+ do; newer models are cloud-only (see the dahlb/ha_hatch integration)."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "poll_interval": "Poll interval (seconds)"
+        },
+        "data_description": {
+          "poll_interval": "How often Home Assistant reads state from the device. Changes made in Home Assistant always appear immediately; this only affects how quickly changes made elsewhere (e.g. the Hatch app) show up."
+        }
+      }
+    }
+  },
   "entity": {
     "switch": {
       "power": {

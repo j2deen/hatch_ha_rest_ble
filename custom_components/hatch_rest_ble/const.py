@@ -4,6 +4,13 @@ from __future__ import annotations
 
 DOMAIN = "hatch_rest_ble"
 
+# Options: how often to read state from the device (seconds). Polling is the
+# only way to see changes made outside HA (the Rest does not push notifications).
+CONF_POLL_INTERVAL = "poll_interval"
+DEFAULT_POLL_INTERVAL = 30
+MIN_POLL_INTERVAL = 10
+MAX_POLL_INTERVAL = 300
+
 # Manufacturer ID advertised by the 1st-gen Hatch Rest (0x0434).
 MANUFACTURER_ID = 1076
 
