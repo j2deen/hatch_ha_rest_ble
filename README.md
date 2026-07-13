@@ -87,6 +87,19 @@ You can change the interval in **Settings → Devices & Services → Hatch Rest
   want to minimise traffic. HA-side control stays instant regardless.
 - **Leave it at 30 s** otherwise — it's a sensible middle ground.
 
+## Offline behaviour
+
+It's fine to unplug the Rest or take it travelling. The integration never blocks
+Home Assistant startup on an absent device:
+
+- Setup completes instantly; if the device can't be reached, its entities show
+  **unavailable** rather than delaying HA.
+- While the device is away, polls fail fast (a presence check, not a connection
+  timeout), and HA marks the entities unavailable as soon as the Bluetooth stack
+  loses the device's advertisements.
+- When it's plugged back in, the first advertisement triggers an immediate
+  refresh — entities typically recover within a few seconds, no restart needed.
+
 ## Requirements
 
 - Home Assistant 2025.3 or newer (the integration icon requires 2026.3+, which

@@ -91,8 +91,14 @@ class HatchRestParseError(Exception):
 class HatchRestClient:
     """Maintains a connection to a Hatch Rest and translates commands/state."""
 
-    def __init__(self, ble_device: BLEDevice) -> None:
-        """Initialise with the BLEDevice resolved from Home Assistant."""
+    def __init__(self, address: str, ble_device: BLEDevice | None = None) -> None:
+        """Initialise with the device address and, if in range, its BLEDevice.
+
+        ``ble_device`` may be None when the device is currently out of range /
+        unplugged; commands will fail fast until one is supplied via
+        ``set_ble_device``.
+        """
+        self._address = address
         self._ble_device = ble_device
         self._client: BleakClientWithServiceCache | None = None
         self._state = HatchRestState()
@@ -105,12 +111,14 @@ class HatchRestClient:
     @property
     def address(self) -> str:
         """Return the device MAC address."""
-        return self._ble_device.address
+        return self._address
 
     @property
     def name(self) -> str:
         """Return a human readable name for the device."""
-        return self._ble_device.name or self._ble_device.address
+        if self._ble_device is not None and self._ble_device.name:
+            return self._ble_device.name
+        return self._address
 
     @property
     def state(self) -> HatchRestState:
@@ -147,6 +155,11 @@ class HatchRestClient:
         async with self._connect_lock:
             if self._client is not None and self._client.is_connected:
                 return self._client
+
+            if self._ble_device is None:
+                raise BleakNotFoundError(
+                    f"{self._address} is not in range of any Bluetooth adapter"
+                )
 
             _LOGGER.debug("%s: connecting", self.name)
             client = await establish_connection(

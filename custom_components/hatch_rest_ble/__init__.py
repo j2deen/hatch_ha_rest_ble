@@ -5,10 +5,13 @@ from __future__ import annotations
 import logging
 
 from homeassistant.components import bluetooth
+from homeassistant.components.bluetooth import (
+    BluetoothCallbackMatcher,
+    BluetoothScanningMode,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL
 from .coordinator import HatchRestCoordinator
@@ -33,33 +36,44 @@ async def async_setup_entry(
     address = entry.unique_id
     assert address is not None
 
+    # May be None when the device is unplugged / out of range; setup proceeds
+    # anyway and the entities stay unavailable until it can be reached.
     ble_device = bluetooth.async_ble_device_from_address(
         hass, address, connectable=True
     )
-    if ble_device is None:
-        raise ConfigEntryNotReady(
-            f"Could not find Hatch Rest with address {address}. "
-            "Make sure it is powered and in range of a Bluetooth adapter or proxy."
-        )
 
-    client = HatchRestClient(ble_device)
+    client = HatchRestClient(address, ble_device)
     coordinator = HatchRestCoordinator(
         hass,
         client,
         address,
         poll_interval=entry.options.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL),
     )
-    try:
-        await coordinator.async_config_entry_first_refresh()
-    except ConfigEntryNotReady:
-        # Don't leak a live connection (the Rest only accepts one) into the
-        # retry; the next attempt builds a fresh client.
-        await client.stop()
-        raise
 
     entry.runtime_data = coordinator
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
+    # React to the device (re)appearing: refresh within seconds instead of
+    # waiting for the next scheduled poll.
+    entry.async_on_unload(
+        bluetooth.async_register_callback(
+            hass,
+            coordinator.async_device_seen,
+            BluetoothCallbackMatcher(address=address, connectable=True),
+            BluetoothScanningMode.PASSIVE,
+        )
+    )
+    # React to the device disappearing: mark entities unavailable promptly.
+    entry.async_on_unload(
+        bluetooth.async_track_unavailable(
+            hass, coordinator.async_device_unavailable, address, connectable=True
+        )
+    )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # First refresh runs in the background so HA startup is never blocked on a
+    # slow/absent BLE device; entities become available when it succeeds.
+    entry.async_create_background_task(
+        hass, coordinator.async_refresh(), f"{entry.title} first refresh"
+    )
     return True
 
 
